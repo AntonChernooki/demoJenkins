@@ -1,0 +1,177 @@
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (1, 'Дэвид Финчер', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (2, 'Росс Грэйсон Белл', 'Продюсер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (3, 'Джим Улс', 'Сценарий');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (4, 'Квентин Тарантино', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (5, 'Роджер Эвери', 'Сценарий');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (6, 'Роберт Земекис', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (7, 'Фрэнк Дарабонт', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (8, 'Стивен Спилберг', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (9, 'Сергей Бондарчук', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (10, 'Марк ДиСалле', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (11, 'Гай Ричи', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (12, 'Кристофер Нолан', 'Режиссер');
+
+INSERT INTO public.film_creators (id, full_name, position)
+VALUES (13, 'Клим Шипенко', 'Режиссер');
+
+
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title)
+VALUES (1, 'США',
+        'Сотрудник страховой компании страдает хронической бессонницей и отчаянно пытается вырваться из мучительно скучной жизни. Однажды в очередной командировке он встречает некоего Тайлера Дёрдена — харизматического торговца мылом с извращенной философией.',
+        2, '1.jpg', 1999, 'Бойцовский клуб');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title)
+VALUES (2, 'США',
+        'Двое бандитов Винсент Вега и Джулс Винфилд ведут философские беседы в перерывах между разборками и решением проблем с должниками криминального босса Марселласа Уоллеса.',
+        3, '2.jpg', 1994, 'Криминальное чтиво');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title)
+VALUES (3, 'США',
+        'Сидя на автобусной остановке, Форрест Гамп — не очень умный, но добрый и открытый парень — рассказывает случайным встречным историю своей необыкновенной жизни.',
+        2, '3.jpg', 1994, 'Форрест Гамп');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title)
+VALUES (4, 'США',
+        'Бухгалтер Энди Дюфрейн обвинён в убийстве собственной жены и её любовника. Оказавшись в тюрьме под названием Шоушенк, он сталкивается с жестокостью и беззаконием, царящими по обе стороны решётки.',
+        2, '4.jpg', 1994, 'Побег из Шоушенка');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title )
+VALUES (5, 'США',
+        'Фильм рассказывает реальную историю загадочного Оскара Шиндлера, члена нацистской партии, преуспевающего фабриканта, спасшего во время Второй мировой войны почти 1200 евреев.',
+        2, '5.jpg', 1993, 'Список Шиндлера');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title )
+VALUES (6, 'СССР',
+        'Июль 1942 года. На подступах к Сталинграду обескровленные, измотанные советские войска ведут тяжелые оборонительные бои, неся огромные потери... Фильм рассказывает о подвиге рядовых солдат, любви к родной земле, об истинной цене победы...',
+        4, '6.jpg', 1975, 'Они сражались за Родину');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title )
+VALUES (7, 'США',
+        'Братья Курт и Эрик Слоан отправляются в Таиланд, на родину кикбоксинга, чтобы доказать местным бойцам превосходство американской школы над тайской. Эрик, чемпион Америки по кикбоксингу, встречается в бою с Тонг По, чемпионом Таиланда.',
+        5, '7.jpg', 1989, 'Кикбоксер');
+
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title )
+VALUES (8, 'Великобритания',
+        'Фрэнки Четыре Пальца должен был переправить краденый алмаз из Англии в США своему боссу Эви, но, сделав ставку на подпольный боксерский поединок, он попал в круговорот весьма нежелательных событий.',
+        1, '8.jpg', 2000, 'Большой куш');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title )
+VALUES (9, 'США',
+        'Когда засуха, пыльные бури и вымирание растений приводят человечество к продовольственному кризису, коллектив исследователей и учёных отправляется сквозь червоточину в путешествие...',
+        0, '9.jpg', 2014, 'Интерстеллар');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title )
+VALUES (10, 'Россия',
+        'Торакальный хирург Женя за месяц должна подготовиться к космическому полету, чтобы отправиться на МКС и спасти заболевшего космонавта. Ей придётся преодолеть неуверенность и страхи, а также провести сложнейшую операцию в условиях невесомости.',
+        2, '10.jpg', 2023, 'Вызов');
+
+INSERT INTO public.films (id, country, description, genre, poster_file_name, release_year, title)
+VALUES (11, 'США',
+        'Подросток Марти с помощью машины времени, сооружённой его другом-профессором доком Брауном, попадает из 80-х в далекие 50-е. Там он встречается со своими будущими родителями, ещё подростками, и другом-профессором, совсем молодым.',
+        0, '11.jpg', 1985, 'Назад в будущее');
+
+
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (1, 1);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (1, 2);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (1, 3);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (2, 4);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (2, 5);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (3, 6);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (4, 7);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (5, 8);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (6, 9);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (7, 10);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (8, 11);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (9, 12);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (10, 13);
+INSERT INTO public.films_film_creators ("filmId", "filmCreatorId") VALUES (11, 6);
+
+
+
+
+INSERT INTO public.seats (row, place) VALUES (1, 1);
+INSERT INTO public.seats (row, place) VALUES (2, 1);
+INSERT INTO public.seats (row, place) VALUES (3, 1);
+INSERT INTO public.seats (row, place) VALUES (4, 1);
+INSERT INTO public.seats (row, place) VALUES (5, 1);
+INSERT INTO public.seats (row, place) VALUES (1, 2);
+INSERT INTO public.seats (row, place) VALUES (2, 2);
+INSERT INTO public.seats (row, place) VALUES (3, 2);
+INSERT INTO public.seats (row, place) VALUES (4, 2);
+INSERT INTO public.seats (row, place) VALUES (5, 2);
+INSERT INTO public.seats (row, place) VALUES (1, 3);
+INSERT INTO public.seats (row, place) VALUES (2, 3);
+INSERT INTO public.seats (row, place) VALUES (3, 3);
+INSERT INTO public.seats (row, place) VALUES (4, 3);
+INSERT INTO public.seats (row, place) VALUES (5, 3);
+INSERT INTO public.seats (row, place) VALUES (1, 4);
+INSERT INTO public.seats (row, place) VALUES (2, 4);
+INSERT INTO public.seats (row, place) VALUES (3, 4);
+INSERT INTO public.seats (row, place) VALUES (4, 4);
+INSERT INTO public.seats (row, place) VALUES (5, 4);
+INSERT INTO public.seats (row, place) VALUES (1, 5);
+INSERT INTO public.seats (row, place) VALUES (2, 5);
+INSERT INTO public.seats (row, place) VALUES (3, 5);
+INSERT INTO public.seats (row, place) VALUES (4, 5);
+INSERT INTO public.seats (row, place) VALUES (5, 5);
+
+
+
+
+-- For Role model
+INSERT INTO public.roles (title, description) VALUES ('USER', 'Пользователь');
+INSERT INTO public.roles (title, description) VALUES ('ADMIN', 'Администратор');
+
+-- Добавление администратора
+INSERT INTO public.users (first_name, last_name, birth_date, email, password, role_id)
+VALUES ('Администратор', 'Админов', '1990-01-01', 'admin@example.com', 'hashed_password', 2);  -- role_id = 2 для ADMIN
+
+INSERT INTO public.users (first_name, last_name, birth_date, email, password, role_id)
+VALUES ('Администратор', 'Админов', '1990-01-01', 'admin@mail.ru', 1111, 2);  -- role_id = 2 для ADMIN
+
+
+-- Добавление обычного пользователя
+INSERT INTO public.users (first_name, last_name, birth_date, email, password, role_id)
+VALUES ('Пользователь', 'Петров', '1995-05-15', 'user@example.com', 'hashed_password', 1);  -- role_id = 1 для USER
+
+
+-- For FilmSession model
+INSERT INTO public.film_sessions (price, start_date, start_time, film_id) VALUES (200, '2033-08-15', '20:30:00', 11);
+INSERT INTO public.film_sessions (price, start_date, start_time, film_id) VALUES (200, '2033-08-15', '10:30:00', 9);
+
+
+
+
+-- For Order model
+INSERT INTO public.orders (cost, purchase, film_session_id, user_id) VALUES (200, true, 1, 1);
+
+-- For Order_Seat association table
+INSERT INTO public.orders_seats ("orderId", "seatId") VALUES (1, 3);
+
+-- For Review model
+INSERT INTO public.reviews (content, film_id, user_id) VALUES ('Ok.', 11, 1);
