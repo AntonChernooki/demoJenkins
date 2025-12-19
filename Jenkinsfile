@@ -3,86 +3,121 @@ pipeline {
 
     environment {
         NODE_ENV = 'test'
-        // Увеличиваем таймаут для npm
+        CI = 'true'
+        // Фиксируем кодировку для Windows
+        PYTHONIOENCODING = 'UTF-8'
+        // Настройки npm
+        NPM_CONFIG_LOGLEVEL = 'warn'
         NPM_CONFIG_FETCH_TIMEOUT = '300000'
-        NPM_CONFIG_REGISTRY = 'https://registry.npmjs.org/'
+        NPM_CONFIG_PROGRESS = 'false'
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+                echo 'Workspace cleaned'
+            }
+        }
+
         stage('Checkout') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: "*/${env.BRANCH_NAME}"]],
-                    extensions: [
-                        [$class: 'CleanBeforeCheckout'],
-                        [$class: 'CloneOption', timeout: 30]
-                    ],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/AntonChernooki/demoJenkins.git',
-                        credentialsId: '09c00738-8a13-4705-a356-b8b5fd87228c'
-                    ]]
-                ])
-                echo "Ветка: ${env.BRANCH_NAME}"
-                echo "Билд: ${env.BUILD_NUMBER}"
-                echo "Ссылка на билд: ${env.BUILD_URL}"
-                
-                // Логируем коммит
-                bat 'git log --oneline -1'
+                checkout scm
+                echo "Branch: ${env.BRANCH_NAME}"
+                echo "Build: ${env.BUILD_NUMBER}"
+                echo "Build URL: ${env.BUILD_URL}"
+                bat 'git log --oneline -3'
             }
         }
 
-        stage('Check Node Version') {
-            steps {
-                bat 'node --version'
-                bat 'npm --version'
-                bat 'where node'
-                bat 'where npm'
-            }
-        }
-
-        stage('Clean and Verify') {
+        stage('Check Environment') {
             steps {
                 script {
-                    // Очищаем node_modules и package-lock.json для чистого ci
+                    echo 'Checking environment...'
                     bat '''
-                        echo "Очистка предыдущих установок..."
-                        if exist node_modules rmdir /s /q node_modules
-                        if exist package-lock.json del package-lock.json
-                        if exist yarn.lock del yarn.lock
-                        
-                        echo "Проверка package-lock.json..."
-                        if not exist package.json (
-                            echo "ERROR: package.json не найден!"
+                        chcp 65001 > nul
+                        echo Node version:
+                        node --version
+                        echo NPM version:
+                        npm --version
+                        echo Workspace:
+                        cd
+                        echo Checking package.json...
+                        if exist package.json (
+                            echo package.json found
+                        ) else (
+                            echo ERROR: package.json not found!
                             exit 1
                         )
                     '''
-                    
-                    // Явно обновляем package-lock.json
-                    bat 'npm install --package-lock-only --no-audit'
                 }
             }
         }
 
-        stage('Install Dependencies (npm ci)') {
+        stage('Clean for npm ci') {
+            steps {
+                bat '''
+                    echo Cleaning previous installations...
+                    if exist node_modules rmdir /s /q node_modules
+                    if exist package-lock.json del package-lock.json
+                    
+                    echo Generating fresh package-lock.json...
+                    npm install --package-lock-only --no-audit --loglevel=error || exit 0
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
             steps {
                 script {
-                    timeout(time: 10, unit: 'MINUTES') {
-                        // Используем npm ci вместо npm install
-                        bat '''
-                            echo "Запуск npm ci..."
-                            echo "Рабочая директория: %cd%"
+                    echo 'Installing dependencies with npm ci...'
+                    
+                    // Пробуем несколько стратегий
+                    def installed = false
+                    
+                    try {
+                        timeout(time: 10, unit: 'MINUTES') {
+                            bat '''
+                                echo "Attempt 1: npm ci with default options..."
+                                npm ci --no-audit --prefer-offline
+                            '''
+                        }
+                        installed = true
+                    } catch (Exception e1) {
+                        echo "Attempt 1 failed, trying alternative..."
+                        
+                        try {
+                            timeout(time: 5, unit: 'MINUTES') {
+                                bat '''
+                                    echo "Attempt 2: npm ci with legacy peer deps..."
+                                    npm ci --no-audit --legacy-peer-deps
+                                '''
+                            }
+                            installed = true
+                        } catch (Exception e2) {
+                            echo "Attempt 2 failed, trying npm install as fallback..."
                             
-                            npm ci --verbose --no-audit --prefer-offline
-                            
-                            if %errorlevel% neq 0 (
-                                echo "npm ci не удался, пытаемся npm install..."
-                                npm install --no-audit --legacy-peer-deps
-                            )
-                            
-                            echo "Зависимости установлены успешно"
-                        '''
+                            timeout(time: 5, unit: 'MINUTES') {
+                                bat '''
+                                    echo "Attempt 3: Fallback to npm install..."
+                                    npm install --no-audit --legacy-peer-deps
+                                '''
+                            }
+                            installed = true
+                        }
                     }
+                    
+                    if (!installed) {
+                        error('Failed to install dependencies')
+                    }
+                    
+                    echo 'Dependencies installed successfully'
                 }
             }
         }
@@ -90,25 +125,28 @@ pipeline {
         stage('Security Check') {
             steps {
                 bat '''
-                    echo "Проверка безопасности зависимостей..."
-                    npm audit --audit-level=moderate || echo "Audit completed with warnings"
+                    echo Running security audit...
+                    npm audit --audit-level=moderate || echo Audit completed with warnings
                 '''
             }
         }
 
-        stage('Lint') {
+        stage('Run Lint') {
             steps {
-                bat 'npm run lint || echo "Lint не сконфигурирован"'
+                bat '''
+                    echo Running lint...
+                    npm run lint:ci
+                '''
             }
         }
 
-        stage('Test') {
+        stage('Run Tests') {
             steps {
                 script {
                     timeout(time: 5, unit: 'MINUTES') {
                         bat '''
-                            echo "Запуск тестов..."
-                            npm test -- --testTimeout=30000 --runInBand
+                            echo Running tests with coverage...
+                            npm run test:ci
                         '''
                     }
                 }
@@ -116,9 +154,9 @@ pipeline {
             
             post {
                 always {
-                    // Сохраняем результаты тестов
-                    junit '**/test-results.xml' 
                     junit '**/junit.xml'
+                    junit '**/test-results.xml'
+                    archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
                 }
             }
         }
@@ -127,34 +165,31 @@ pipeline {
             when {
                 anyOf { 
                     branch 'develop'
-                    branch 'main' 
+                    branch 'main'
+                    branch 'master' 
                 }
             }
             steps {
-                script {
-                    bat '''
-                        echo "Сборка проекта..."
-                        npm run build || echo "Build script не найден или пропущен"
-                    '''
+                bat '''
+                    echo Building project...
+                    npm run build:ci
                     
-                    // Проверяем, появилась ли папка dist
-                    dir('dist') {
-                        bat 'dir || echo "Папка dist не создана"'
-                    }
-                }
+                    if exist dist (
+                        echo Build directory created:
+                        dir dist
+                    )
+                '''
             }
         }
 
         stage('Archive Artifacts') {
             when { 
                 branch 'main' 
-                expression { 
-                    fileExists('dist') 
-                }
+                expression { fileExists('dist') }
             }
             steps {
                 archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
-                echo 'Артефакты сохранены в Jenkins'
+                echo 'Artifacts archived'
             }
         }
 
@@ -164,41 +199,30 @@ pipeline {
                 expression { fileExists('dist') }
             }
             steps {
-                echo '=== ДЕПЛОЙ НА STAGING ==='
-                echo "Сборка #${env.BUILD_NUMBER} готова для деплоя на staging"
+                echo '=== DEPLOY TO STAGING ==='
+                echo 'In real project: deploy to staging server'
                 
-                // Пример команды деплоя (замените на свои)
-                bat '''
-                    echo "Копирование файлов на staging сервер..."
-                    echo "Здесь будут команды деплоя на staging"
-                '''
-                
-                // Уведомление (можно настроить email, slack и т.д.)
-                echo "Staging деплой завершен для ветки ${env.BRANCH_NAME}"
+                script {
+                    // Пример деплоя
+                    bat '''
+                        echo "Would deploy to staging server..."
+                        echo "Build number: ${env.BUILD_NUMBER}"
+                    '''
+                }
             }
         }
 
-        stage('Approval for Production') {
+        stage('Production Approval') {
             when { 
                 branch 'main'
                 expression { fileExists('dist') }
             }
             steps {
-                script {
-                    // Мануальное подтверждение для продакшена
-                    input(
-                        message: "Одобрить деплой сборки #${env.BUILD_NUMBER} в ПРОДАКШЕН?",
-                        ok: 'Разрешить деплой',
-                        submitter: 'admin,anton',
-                        parameters: [
-                            choice(
-                                choices: ['Да, деплоить', 'Нет, отменить'],
-                                description: 'Подтверждение деплоя',
-                                name: 'DEPLOY_ACTION'
-                            )
-                        ]
-                    )
-                }
+                input(
+                    message: "Approve deployment of build #${env.BUILD_NUMBER} to PRODUCTION?",
+                    ok: 'Deploy',
+                    submitter: 'admin,anton'
+                )
             }
         }
 
@@ -208,118 +232,70 @@ pipeline {
                 expression { fileExists('dist') }
             }
             steps {
-                echo '=== ДЕПЛОЙ В ПРОДАКШЕН ==='
+                echo '=== DEPLOY TO PRODUCTION ==='
+                echo 'Application deployed to production!'
                 
                 script {
-                    // Пример команд деплоя
                     bat '''
-                        echo "Начинаем деплой в продакшен..."
-                        echo "1. Бэкап текущей версии"
-                        echo "2. Копирование новых файлов"
-                        echo "3. Перезапуск сервиса"
-                        echo "4. Проверка здоровья"
+                        echo "Deploying to production..."
+                        echo "1. Backup current version"
+                        echo "2. Copy new files"
+                        echo "3. Restart application"
+                        timeout /t 5 /nobreak
                     '''
-                    
-                    // Обновление версии (опционально)
-                    bat 'npm version patch --no-git-tag-version || echo "Version update skipped"'
                 }
-                
-                echo "Приложение успешно задеплоено в продакшен!"
-                echo "Версия: ${env.BUILD_NUMBER}"
-                echo "Время: ${new Date()}"
-            }
-            
-            post {
-                success {
-                    // Отправка уведомления об успешном деплое
-                    echo "Уведомление об успешном деплое отправлено"
-                    
-                    // Можно добавить отправку email/slack/webhook
-                    // emailext body: "Продакшен деплой успешен!\n\nСборка: ${env.BUILD_URL}", subject: "Продакшен деплой завершен", to: "team@example.com"
-                }
-            }
-        }
-
-        stage('Post-Deploy Tests') {
-            when { 
-                branch 'main'
-                expression { fileExists('dist') }
-            }
-            steps {
-                echo "Выполнение пост-деплой тестов..."
-                
-                script {
-                    timeout(time: 3, unit: 'MINUTES') {
-                        // Пример проверки доступности приложения
-                        bat '''
-                            echo "Проверка доступности приложения после деплоя..."
-                            echo "Здесь могут быть curl запросы к health-check эндпоинту"
-                            timeout /t 10 /nobreak > nul
-                        '''
-                    }
-                }
-                
-                echo "Пост-деплой проверки завершены"
             }
         }
     }
 
     post {
         always {
-            echo "========================================="
-            echo "Статус пайплайна: ${currentBuild.currentResult}"
-            echo "Длительность: ${currentBuild.durationString}"
-            echo "========================================="
+            echo "========================================"
+            echo "Build status: ${currentBuild.currentResult}"
+            echo "Duration: ${currentBuild.durationString}"
+            echo "========================================"
             
-            // Сохраняем логи
-            archiveArtifacts artifacts: 'npm-debug.log*, **/logs/**', allowEmptyArchive: true
+            // Сохраняем логи для отладки
+            archiveArtifacts artifacts: 'npm-debug.log*, logs/**, *.log', allowEmptyArchive: true
             
-            // Очистка workspace (можно настроить что оставлять)
+            // Очищаем workspace
             cleanWs(
                 cleanWhenAborted: true,
                 cleanWhenFailure: true,
                 cleanWhenNotBuilt: true,
                 cleanWhenUnstable: true,
                 cleanWhenSuccess: true,
-                deleteDirs: true
+                deleteDirs: true,
+                patterns: [[pattern: '.git/**', type: 'INCLUDE']]
             )
         }
         
         success {
-            echo '✅ Пайплайн успешно завершён!'
-            
-            // Обновление статуса в GitHub (если настроено)
-            // updateGitHubCommitStatus state: 'SUCCESS'
+            echo '✅ Pipeline completed successfully!'
         }
         
         failure {
-            echo '❌ Пайплайн завершился с ошибкой!'
+            echo '❌ Pipeline failed!'
             
-            // Детальный лог ошибки
             script {
-                def cause = currentBuild.getBuildCauses()
-                echo "Причина падения: ${cause}"
-                
-                // Можно добавить автоматическую диагностику
+                // Диагностика при неудаче
                 bat '''
-                    echo "=== ДИАГНОСТИКА ==="
-                    echo "Проверка свободного места на диске:"
-                    dir
-                    echo "Проверка node_modules:"
-                    if exist node_modules echo "node_modules существует" else echo "node_modules отсутствует"
+                    echo === DIAGNOSTICS ===
+                    echo Checking node_modules:
+                    if exist node_modules (
+                        dir node_modules | find /c "File(s)" || echo "Cannot list node_modules"
+                    ) else (
+                        echo "node_modules not found"
+                    )
+                    
+                    echo Checking disk space:
+                    wmic logicaldisk get caption,freespace,size 2>nul || echo "Cannot check disk space"
                 '''
             }
-            
-            // Отправка уведомления об ошибке
-            // emailext body: "Пайплайн упал!\n\nСборка: ${env.BUILD_URL}\nПричина: ${currentBuild.currentResult}", subject: "ПАЙПЛАЙН УПАЛ: ${env.JOB_NAME}", to: "devops@example.com"
         }
         
         unstable {
-            echo '⚠️ Пайплайн завершился с предупреждениями'
-        }
-        
-        changed {
-            echo "Статус изменился: ${currentBuild.currentResult}"
+            echo '⚠️ Pipeline completed with warnings'
         }
     }
 }
