@@ -14,19 +14,19 @@ pipeline {
 
         stage('Install') {
             steps {
-                sh 'npm install'
+                bat 'npm install'
             }
         }
 
         stage('Test') {
             steps {
-                sh 'npm test'
+                bat 'npm test'
             }
         }
 
         stage('Build') {
             steps {
-                sh 'npm run build || echo "No build step"'
+                bat 'npm run build || echo No build step'
             }
         }
 
@@ -36,7 +36,7 @@ pipeline {
             }
             steps {
                 echo 'Deploying application...'
-                // здесь можно вызвать скрипт деплоя, docker-compose, kubectl и т.д.
+               
             }
         }
     }
