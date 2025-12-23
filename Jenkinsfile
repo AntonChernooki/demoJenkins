@@ -23,11 +23,25 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
-                echo "Ветка: ${env.BRANCH_NAME}"
-                echo "Билд: ${env.BUILD_NUMBER}"
-                echo "Ссылка на билд: ${env.BUILD_URL}"
-                bat 'git log --oneline -3 || echo "Не удалось показать лог"'
+                script {
+                    // Используем стандартный checkout без дублирования
+                    checkout scm
+                    echo "Ветка: ${env.BRANCH_NAME}"
+                    echo "Билд: ${env.BUILD_NUMBER}"
+                    echo "Ссылка на билд: ${env.BUILD_URL}"
+                    
+                    // Безопасное выполнение git log с обработкой ошибок
+                    try {
+                        bat '''
+                            @echo off
+                            chcp 65001 > nul
+                            git log --oneline -3
+                        '''
+                    } catch (Exception e) {
+                        echo "Не удалось выполнить git log: ${e.getMessage()}"
+                        echo "Продолжаем выполнение pipeline..."
+                    }
+                }
             }
         }
 
@@ -55,10 +69,20 @@ pipeline {
                     @echo off
                     chcp 65001 > nul
                     echo === УСТАНОВКА ЗАВИСИМОСТЕЙ ===
-                    npm ci --no-audit --prefer-offline --no-fund --no-progress || (
-                        echo "npm ci failed, trying npm install..."
+                    
+                    rem Очищаем npm cache перед установкой
+                    npm cache clean --force
+                    
+                    rem Пробуем установить зависимости
+                    npm ci --no-audit --prefer-offline --no-fund --no-progress
+                    
+                    rem Если npm ci не сработал, пробуем npm install
+                    if errorlevel 1 (
+                        echo npm ci failed, trying npm install...
                         npm install --no-audit --prefer-offline --no-fund --no-progress
                     )
+                    
+                    echo Dependencies installed successfully
                 '''
             }
         }
