@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label 'any'  // Используем Windows агент
-    }
+    agent any
 
     environment {
         // Устанавливаем UTF-8 кодировку для Windows
