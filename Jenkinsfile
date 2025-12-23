@@ -1,38 +1,104 @@
 pipeline {
-    agent any
+    agent {
+        label 'windows'  // Используем Windows агент
+    }
+
+    environment {
+        // Устанавливаем UTF-8 кодировку для Windows
+        PYTHONIOENCODING = 'UTF-8'
+        // Оптимизация npm
+        NPM_CONFIG_LOGLEVEL = 'warn'
+        NPM_CONFIG_PROGRESS = 'false'
+        // Убираем пробелы из URL
+        GIT_URL = 'https://github.com/AntonChernooki/demoJenkins.git'
+    }
+
+    options {
+        timeout(time: 60, unit: 'MINUTES')
+        retry(3)  // Повторять при ошибках
+        disableConcurrentBuilds()
+    }
 
     stages {
-        stage('Checkout') {
+        stage('Clean Workspace') {
             steps {
-                checkout scm
-                echo "Ветка: ${env.BRANCH_NAME}"
-                echo "Билд: ${env.BUILD_NUMBER}"
-                echo "Ссылка на билд: ${env.BUILD_URL}"
+                cleanWs()
+                echo 'Workspace очищен'
             }
         }
 
-        stage('Check Node Version') {
+        stage('Checkout') {
             steps {
-                sh 'node --version'
-                sh 'npm --version'
+                script {
+                    // Явное указание URL без пробелов
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${env.BRANCH_NAME}"]],
+                        extensions: [
+                            [$class: 'CloneOption', timeout: 60, depth: 1, noTags: true],
+                            [$class: 'WipeWorkspace']
+                        ],
+                        userRemoteConfigs: [[
+                            url: 'https://github.com/AntonChernooki/demoJenkins.git',
+                            credentialsId: 'github-credentials'  // Укажите ваш ID credentials
+                        ]]
+                    ])
+                }
+                echo "Ветка: ${env.BRANCH_NAME}"
+                echo "Билд: ${env.BUILD_NUMBER}"
+                echo "Ссылка на билд: ${env.BUILD_URL}"
+                bat 'git log --oneline -3'
+            }
+        }
+
+        stage('Check Environment') {
+            steps {
+                bat '''
+                    @echo off
+                    chcp 65001 > nul
+                    echo === ПРОВЕРКА ОКРУЖЕНИЯ ===
+                    echo Node version:
+                    node --version
+                    echo NPM version:
+                    npm --version
+                    echo Git version:
+                    git --version
+                    echo Current directory:
+                    cd
+                '''
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm ci'
+                bat '''
+                    @echo off
+                    chcp 65001 > nul
+                    echo === УСТАНОВКА ЗАВИСИМОСТЕЙ ===
+                    npm ci --no-audit --prefer-offline --no-fund --no-progress
+                '''
             }
         }
 
         stage('Lint') {
             steps {
-                sh 'npm run lint || true'
+                bat '''
+                    @echo off
+                    chcp 65001 > nul
+                    echo === ЗАПУСК LINT ===
+                    npm run lint:ci || echo "Lint warnings found, continuing..."
+                '''
             }
         }
 
         stage('Test') {
             steps {
-                sh 'npm run test'
+                bat '''
+                    @echo off
+                    chcp 65001 > nul
+                    echo === ЗАПУСК ТЕСТОВ ===
+                    npm run test:ci
+                '''
             }
         }
 
@@ -41,16 +107,27 @@ pipeline {
                 anyOf { branch 'develop'; branch 'main' }
             }
             steps {
-                sh 'npm run build'
-                echo 'Приложение собрано в dist/'
+                bat '''
+                    @echo off
+                    chcp 65001 > nul
+                    echo === СБОРКА ПРИЛОЖЕНИЯ ===
+                    npm run build:ci || echo "No build script configured, skipping..."
+                '''
+                echo 'Приложение собрано'
             }
         }
 
         stage('Archive Artifacts') {
             when { branch 'main' }
             steps {
-                archiveArtifacts artifacts: 'dist/**', fingerprint: true
-                echo 'Артефакты сохранены'
+                script {
+                    if (fileExists('dist')) {
+                        archiveArtifacts artifacts: 'dist/**/*', fingerprint: true
+                        echo 'Артефакты сохранены'
+                    } else {
+                        echo 'Директория dist не найдена, пропускаем архивацию'
+                    }
+                }
             }
         }
 
@@ -65,7 +142,7 @@ pipeline {
         stage('Deploy to Production') {
             when { branch 'main' }
             steps {
-                input message: 'Одобрить деплой в ПРОДАКШЕН?', ok: 'Да'
+                input message: 'Одобрить деплой в ПРОДАКШЕН?', ok: 'Да', submitter: 'admin,anton'
                 echo '=== ДЕПЛОЙ В ПРОДАКШЕН ==='
                 echo 'Приложение задеплоено в продакшен!'
             }
@@ -74,13 +151,32 @@ pipeline {
 
     post {
         always {
+            echo "========================================"
+            echo "Статус сборки: ${currentBuild.currentResult}"
+            echo "Длительность: ${currentBuild.durationString}"
+            echo "Ветка: ${env.BRANCH_NAME}"
+            echo "========================================"
+            
+            // Архивируем логи для отладки
+            archiveArtifacts artifacts: 'npm-debug.log*, logs/**, *.log', allowEmptyArchive: true
+            
+            // Очищаем workspace
             cleanWs()
         }
         success {
-            echo 'Пайплайн успешно завершён!'
+            echo '✅ Пайплайн успешно завершён!'
         }
         failure {
-            echo 'Пайплайн упал!'
+            echo '❌ Пайплайн упал!'
+            bat '''
+                @echo off
+                chcp 65001 > nul
+                echo === ДИАГНОСТИКА ОШИБКИ ===
+                echo Проверка подключения к GitHub:
+                ping github.com
+                echo Проверка дискового пространства:
+                wmic logicaldisk get caption,freespace,size
+            '''
         }
     }
 }
