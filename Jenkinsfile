@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'windows'  // Убедитесь, что у вас есть агент с Windows
+        label 'windows'  // Убедитесь, что у вас есть Windows агент с меткой 'windows'
     }
 
     environment {
@@ -10,17 +10,16 @@ pipeline {
         NPM_CONFIG_LOGLEVEL = 'warn'
         NPM_CONFIG_FETCH_TIMEOUT = '300000'
         NPM_CONFIG_PROGRESS = 'false'
-        // Устанавливаем переменные для Git
         GIT_TERMINAL_PROMPT = '0'
-        GIT_SSL_NO_VERIFY = 'true'  // Временно для отладки, удалите в продакшене
+        // Устанавливаем кэш npm в отдельную директорию
+        NPM_CONFIG_CACHE = 'C:\\npm-cache'
     }
 
     options {
-        timeout(time: 60, unit: 'MINUTES')  // Увеличиваем таймаут
+        timeout(time: 60, unit: 'MINUTES')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        // Добавляем retry для этапов
-        retry(3)
+        retry(2)
     }
 
     stages {
@@ -33,22 +32,17 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                script {
-                    // Увеличиваем таймаут для клонирования
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: "*/${env.BRANCH_NAME}"]],
-                        extensions: [
-                            [$class: 'CloneOption', depth: 1, noTags: true, shallow: true, timeout: 60],  // Глубокое клонирование не нужно
-                            [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [[path: 'package.json'], [path: 'src/'], [path: '__tests__/']]],
-                            [$class: 'WipeWorkspace']  // Чистим workspace перед клонированием
-                        ],
-                        userRemoteConfigs: [[
-                            url: 'https://github.com/AntonChernooki/demoJenkins.git',
-                            credentialsId: 'github-credentials'  // Укажите ваш ID credentials
-                        ]]
-                    ])
-                }
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "*/${env.BRANCH_NAME}"]],
+                    extensions: [
+                        [$class: 'CloneOption', depth: 1, noTags: true, shallow: true, timeout: 60],
+                        [$class: 'WipeWorkspace']
+                    ],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/AntonChernooki/demoJenkins.git'
+                    ]]
+                ])
                 echo "Branch: ${env.BRANCH_NAME}"
                 echo "Build: ${env.BUILD_NUMBER}"
                 echo "Build URL: ${env.BUILD_URL}"
@@ -61,7 +55,9 @@ pipeline {
                 script {
                     echo 'Checking environment...'
                     bat '''
+                        @echo off
                         chcp 65001 > nul
+                        echo === ENVIRONMENT CHECK ===
                         echo Node version:
                         node --version
                         echo NPM version:
@@ -69,7 +65,9 @@ pipeline {
                         echo Git version:
                         git --version
                         echo Disk space:
-                        dir C:\\
+                        wmic logicaldisk get caption,freespace,size
+                        echo Current directory:
+                        cd
                         echo Checking package.json...
                         if exist package.json (
                             echo package.json found
@@ -86,24 +84,23 @@ pipeline {
             steps {
                 script {
                     echo 'Installing dependencies with npm ci...'
-                    
-                    // Устанавливаем зависимости с увеличенными таймаутами
                     bat '''
+                        @echo off
                         chcp 65001 > nul
-                        echo Cleaning npm cache...
+                        echo === CLEANING NPM CACHE ===
                         npm cache clean --force
                         
-                        echo Installing dependencies...
-                        npm ci --no-audit --prefer-offline --verbose --no-fund --no-progress
+                        echo === INSTALLING DEPENDENCIES ===
+                        npm ci --no-audit --prefer-offline --no-fund --no-progress
                         
                         if errorlevel 1 (
                             echo First attempt failed, trying with legacy peer deps...
-                            npm ci --no-audit --legacy-peer-deps --verbose --no-fund --no-progress
+                            npm ci --no-audit --legacy-peer-deps --no-fund --no-progress
                         )
                         
                         if errorlevel 1 (
                             echo Second attempt failed, trying npm install...
-                            npm install --no-audit --legacy-peer-deps --verbose --no-fund --no-progress
+                            npm install --no-audit --legacy-peer-deps --no-fund --no-progress
                         )
                         
                         echo Dependencies installed successfully
@@ -115,8 +112,9 @@ pipeline {
         stage('Security Check') {
             steps {
                 bat '''
+                    @echo off
                     chcp 65001 > nul
-                    echo Running security audit...
+                    echo === SECURITY AUDIT ===
                     npm audit --audit-level=moderate || echo "Audit completed with warnings, continuing..."
                 '''
             }
@@ -125,8 +123,9 @@ pipeline {
         stage('Run Lint') {
             steps {
                 bat '''
+                    @echo off
                     chcp 65001 > nul
-                    echo Running lint...
+                    echo === RUNNING LINT ===
                     npm run lint:ci || echo "Lint warnings found, continuing..."
                 '''
             }
@@ -137,8 +136,9 @@ pipeline {
                 script {
                     timeout(time: 15, unit: 'MINUTES') {
                         bat '''
+                            @echo off
                             chcp 65001 > nul
-                            echo Running tests with coverage...
+                            echo === RUNNING TESTS WITH COVERAGE ===
                             npm run test:ci
                         '''
                     }
@@ -147,13 +147,13 @@ pipeline {
             
             post {
                 always {
-                    junit allowEmptyResults: true, testResultsPattern: '**/junit.xml,**/test-results.xml,**/test-report.xml'
+                    // ИСПРАВЛЕННЫЙ СИНТАКСИС JUNIT
+                    junit testResults: '**/junit.xml,**/test-results.xml,**/test-report.xml', allowEmptyResults: true
                     archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
                 }
             }
         }
 
-        // Остальные этапы остаются без изменений, но с улучшенной обработкой ошибок
         stage('Build') {
             when {
                 anyOf { 
@@ -164,8 +164,9 @@ pipeline {
             }
             steps {
                 bat '''
+                    @echo off
                     chcp 65001 > nul
-                    echo Building project...
+                    echo === BUILDING PROJECT ===
                     npm run build:ci || echo "No build script configured, skipping..."
                     
                     if exist dist (
@@ -206,18 +207,15 @@ pipeline {
             // Архивируем логи для отладки
             archiveArtifacts artifacts: 'npm-debug.log*, logs/**, *.log, coverage/**', allowEmptyArchive: true
             
-            // Аккуратная очистка workspace
-            script {
-                if (fileExists('.git')) {
-                    bat '''
-                        chcp 65001 > nul
-                        echo Cleaning up...
-                        rmdir /s /q node_modules 2>nul
-                        del package-lock.json 2>nul
-                        del npm-debug.log* 2>nul
-                    '''
-                }
-            }
+            // Очищаем workspace
+            cleanWs(
+                cleanWhenAborted: true,
+                cleanWhenFailure: true,
+                cleanWhenNotBuilt: true,
+                cleanWhenUnstable: true,
+                cleanWhenSuccess: true,
+                deleteDirs: true
+            )
         }
         
         success {
@@ -226,18 +224,14 @@ pipeline {
         
         failure {
             echo '❌ Pipeline failed!'
-            
             script {
-                // Детальная диагностика при неудаче
                 bat '''
+                    @echo off
                     chcp 65001 > nul
                     echo === FAILURE DIAGNOSTICS ===
                     
                     echo === GIT STATUS ===
                     git status
-                    
-                    echo === GIT REMOTE -v ===
-                    git remote -v
                     
                     echo === NODE MODULES CHECK ===
                     if exist node_modules (
@@ -256,14 +250,12 @@ pipeline {
                     
                     echo === DISK SPACE ===
                     wmic logicaldisk get caption,freespace,size
-                    
-                    echo === NETWORK CHECK ===
-                    ping github.com
-                    
-                    echo === NPM CACHE ===
-                    npm cache verify
                 '''
             }
+        }
+        
+        unstable {
+            echo '⚠️ Pipeline completed with warnings'
         }
     }
 }
